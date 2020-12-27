@@ -19,6 +19,7 @@ public class Ship {
     @Column(name = "planet")
     private String planet;
     @Column(name = "shipType")
+    @Enumerated(value = EnumType.STRING)
     private ShipType shipType;
     @Column(name = "prodDate")
     private Date prodDate;
@@ -128,5 +129,20 @@ public class Ship {
 
     public void setRating(Double rating) {
         this.rating = rating;
+    }
+
+    @Override
+    public String toString() {
+        return "Ship{" +
+                "id=" + id +
+                ", name='" + name + '\'' +
+                ", planet='" + planet + '\'' +
+                ", shipType=" + shipType +
+                ", prodDate=" + prodDate +
+                ", isUsed=" + isUsed +
+                ", speed=" + speed +
+                ", crewSize=" + crewSize +
+                ", rating=" + rating +
+                '}';
     }
 }

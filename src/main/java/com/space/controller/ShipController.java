@@ -15,7 +15,6 @@ import java.util.List;
 import java.util.Optional;
 
 @RestController
-//@Controller
 @RequestMapping("/rest")
 public class ShipController {
 
@@ -67,7 +66,7 @@ public class ShipController {
     {
 
         Integer count = 0;
-//        List<Ship> shipsAll = shipService.selectAllFromTable();
+        System.out.println();
 
         if (planet!=null) {
             System.out.println();
