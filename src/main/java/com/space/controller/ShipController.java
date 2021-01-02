@@ -1,16 +1,15 @@
 package com.space.controller;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.space.model.Ship;
 import com.space.model.ShipType;
 import com.space.service.ShipService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.*;
 
 @RestController
@@ -200,53 +199,33 @@ public class ShipController {
     }
 
     @PostMapping("/ships")
-    @ResponseBody
-    public ResponseEntity<Ship> createShip(@RequestParam String shipInfo) throws JsonProcessingException
-
-//    @RequestBody(required = true) String name,
-//    @RequestBody(required = true) String planet,
-//    @RequestBody(required = true) ShipType shipType,
-//    @RequestBody(required = true) Long prodDate,
-//    @RequestBody(required = false) Boolean isUsed,
-//    @RequestBody(required = true) Double speed,
-//    @RequestBody(required = true) Integer crewSize
-//
+    public ResponseEntity<Ship> createShip(@RequestBody Ship requestShip)
     {
-        ObjectMapper objectMapper = new ObjectMapper();
-        Ship currentShip = objectMapper.readValue(shipInfo, Ship.class);
+        if (requestShip.getUsed()==null)
+            requestShip.setUsed(false);
 
-        if (currentShip.getUsed().equals(null)) {
-            currentShip.setUsed(false);
-        }
-        return new ResponseEntity<>(shipService.saveShip(currentShip), HttpStatus.OK);
-
-//        if (isUsed.equals(null)) {
-//            isUsed=false;
-//        }
-
+//        - указаны не все параметры из Data Params (кроме isUsed);
+        if (requestShip.getName()==null || requestShip.getPlanet()==null || requestShip.getShipType()==null ||
+            requestShip.getProdDate()==null || requestShip.getSpeed()==null || requestShip.getCrewSize()==null)
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 //        - длина значения параметра “name” или “planet” превышает размер соответствующего поля в БД (50 символов);
 //        - значение параметра “name” или “planet” пустая строка;
 //        скорость или размер команды находятся вне заданных пределов;
 //        "prodDate”:[Long] < 0;
 //        год производства находятся вне заданных пределов.
-//        Date date = new Date(prodDate);
-//        if (name.length()>50 || planet.length()>50 || name.equals("") || planet.equals("") ||
-//                speed>0.99 || speed<0.01 || crewSize<1 || crewSize>9999 || prodDate<0 ||
-//                date.getYear()<2800 || date.getYear()>3019)
-//        return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-//        else {
-//            Ship newShip = new Ship();
-//            newShip.setName(name);
-//            newShip.setPlanet(planet);
-//            newShip.setShipType(shipType);
-//            newShip.setProdDate(new Date(prodDate));
-//            newShip.setUsed(isUsed);
-//            newShip.setSpeed(speed);
-//            newShip.setCrewSize(crewSize);
-//            return new ResponseEntity<>(shipService.saveShip(newShip), HttpStatus.OK);
-//        }
-//
-//        return null;
+        if (requestShip.getName().length()>50 || requestShip.getPlanet().length()>50 ||
+                requestShip.getName().equals("") || requestShip.getPlanet().equals("") ||
+                requestShip.getSpeed()>0.99 ||
+                requestShip.getSpeed()<0.01 || requestShip.getCrewSize()<1 || requestShip.getCrewSize()>9999 ||
+                requestShip.getProdDate().getYear()+1900<0 || requestShip.getProdDate().getYear()+1900>3019 ||
+                requestShip.getProdDate().getTime()<0)
+        return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+
+        Double calcRating = requestShip.calculateRating(requestShip.getSpeed(), requestShip.getUsed(),
+                requestShip.getProdDate());
+        Double calcRatingRounded = round(calcRating, 2);
+        requestShip.setRating(calcRatingRounded);
+        return new ResponseEntity<>(shipService.saveShip(requestShip), HttpStatus.OK);
 
     }
 
@@ -283,54 +262,69 @@ public class ShipController {
     }
 
 
-    @PostMapping(value = "/ships/{id}", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<Ship> updateShip(@PathVariable("id") String id,
-                                            @RequestBody(required = false) String name,
-                                            @RequestBody(required = false) String planet,
-                                            @RequestBody(required = false) ShipType shipType,
-                                            @RequestBody(required = false) Long prodDate,
-                                            @RequestBody(required = false) Boolean isUsed,
-                                            @RequestBody(required = false) Double speed,
-                                            @RequestBody(required = false) Integer crewSize)
-
+    @PostMapping(value = "/ships/{id}")
+    public ResponseEntity<Ship> updateShip(@PathVariable("id") String id, @RequestBody Ship requestShip)
     {
-
-
-
 
         Integer idInt = null;
         try {
             idInt = Integer.parseInt(id);
             if (idInt>0) {
                 // правильное id. тут ищем в БД.
-                List<Ship> lstShips = shipService.findAll();
-                Ship foundShip = null;
-                for (Ship ship: lstShips) {
-                    if (Integer.parseInt(String.valueOf(ship.getId()))==idInt) {
-                        foundShip=ship;
-                        break;
+                Optional<Ship> foundShip = shipService.findId(idInt.longValue());
+
+                if (foundShip.isPresent()) {
+
+                    Ship foundShipInstance = foundShip.get();
+
+                    // нашли id в базе. теперь проверяем можно ли что-то обновить.
+                    if (requestShip.getName()==null && requestShip.getPlanet()==null && requestShip.getShipType()==null &&
+                            requestShip.getProdDate()==null && requestShip.getSpeed()==null && requestShip.getCrewSize()==null)
+                        return new ResponseEntity<>(shipService.saveShip(foundShipInstance), HttpStatus.OK);
+
+
+                    if (requestShip.getName()!=null) {
+                        if (requestShip.getName().length()>50 || requestShip.getName().equals(""))
+                            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+                        else
+                            foundShipInstance.setName(requestShip.getName());
                     }
-                }
+                    if (requestShip.getPlanet()!=null) {
+                        if (requestShip.getPlanet().length() > 50 || requestShip.getPlanet().equals(""))
+                            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+                        else
+                            foundShipInstance.setPlanet(requestShip.getPlanet());
+                    }
+                    if (requestShip.getShipType()!=null)
+                        foundShipInstance.setShipType(requestShip.getShipType());
+                    if (requestShip.getProdDate()!=null) {
+                        if (requestShip.getProdDate().getTime()<0 || requestShip.getProdDate().getYear()+1900<2800 ||
+                                requestShip.getProdDate().getYear()+1900>3019)
+                            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+                        else
+                            foundShipInstance.setProdDate(requestShip.getProdDate());
+                    }
+                    if (requestShip.getUsed()!=null)
+                        foundShipInstance.setUsed(requestShip.getUsed());
+                    if (requestShip.getSpeed()!=null) {
+                        if (requestShip.getSpeed()<0.01 || requestShip.getSpeed()>0.99)
+                            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+                        else
+                            foundShipInstance.setSpeed(requestShip.getSpeed());
+                    }
+                    if (requestShip.getCrewSize()!=null) {
+                        if (requestShip.getCrewSize()>9999 || requestShip.getCrewSize()<1)
+                            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+                        else
+                            foundShipInstance.setCrewSize(requestShip.getCrewSize());
+                    }
 
-                // проверка если мы нашли ship
-                if (foundShip!=null) {
-                    // если ship есть. по обновляем данные
-                    if (name!=null)
-                        foundShip.setName(name);
-                    if (planet!=null)
-                        foundShip.setPlanet(planet);
-                    if (shipType!=null)
-                        foundShip.setShipType(shipType);
-                    if (prodDate!=null)
-                        foundShip.setProdDate(new Date(prodDate));
-                    if (isUsed!=null)
-                        foundShip.setUsed(isUsed);
-                    if (speed!=null)
-                        foundShip.setSpeed(speed);
-                    if (crewSize!=null)
-                        foundShip.setCrewSize(crewSize);
+                    Double calcRating = foundShipInstance.calculateRating(foundShipInstance.getSpeed(),
+                            foundShipInstance.getUsed(), foundShipInstance.getProdDate());
 
-                    return new ResponseEntity<>(foundShip, HttpStatus.OK);
+                    Double calcRatingRounded = round(calcRating, 2);
+                    foundShipInstance.setRating(calcRatingRounded);
+                    return new ResponseEntity<>(shipService.saveShip(foundShipInstance), HttpStatus.OK);
                 }
                 else
                     return new ResponseEntity<>(HttpStatus.NOT_FOUND);
@@ -341,11 +335,8 @@ public class ShipController {
         catch (Exception exception) {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
-
-
-
-
     }
+
 
     @DeleteMapping("ships/{id}")
     public ResponseEntity<Ship> deleteShip(@PathVariable("id") String id)
@@ -530,6 +521,15 @@ public class ShipController {
         }
 
         return ships;
+    }
+
+
+    private static double round(double value, int places) {
+        if (places < 0) throw new IllegalArgumentException();
+
+        BigDecimal bd = new BigDecimal(Double.toString(value));
+        bd = bd.setScale(places, RoundingMode.HALF_UP);
+        return bd.doubleValue();
     }
 
 

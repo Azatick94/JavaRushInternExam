@@ -47,7 +47,7 @@ public class Ship {
     public Ship() {
     }
 
-    private Double calculateRating(Double speed, Boolean isUsed, Date prodDate) {
+    public Double calculateRating(Double speed, Boolean isUsed, Date prodDate) {
         Double k;
         if (isUsed)
             k=0.5;
@@ -55,7 +55,7 @@ public class Ship {
             k=1.0;
         int currentDate = 3019;
 
-        Double rating = (80*speed*k)/(currentDate-prodDate.getYear()+1);
+        Double rating = (80*speed*k)/(currentDate-(prodDate.getYear()+1900)+1);
         return rating;
     }
 

@@ -5,7 +5,6 @@ import com.space.repository.ShipRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -35,6 +34,11 @@ public class ShipService {
     public Ship saveShip(Ship ship) {
         return shipRepository.save(ship);
     }
+
+    public Optional<Ship> findId(Long id) {
+        return shipRepository.findById(id);
+    }
+
 
 
 
