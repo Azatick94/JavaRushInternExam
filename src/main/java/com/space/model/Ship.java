@@ -44,7 +44,7 @@ public class Ship {
     }
 
     // не нужный конструктор. необходим только для jpa.
-    protected Ship() {
+    public Ship() {
     }
 
     private Double calculateRating(Double speed, Boolean isUsed, Date prodDate) {

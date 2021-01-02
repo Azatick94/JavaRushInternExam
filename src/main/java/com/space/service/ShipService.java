@@ -32,7 +32,9 @@ public class ShipService {
         shipRepository.deleteById(shipId);
     }
 
-
+    public Ship saveShip(Ship ship) {
+        return shipRepository.save(ship);
+    }
 
 
 
