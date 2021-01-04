@@ -8,7 +8,7 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Optional;
 
-// класс сервис, который предоставляяет операции над базой данных.
+// класс сервис, который предоставляет операции над базой данных.
 @Service
 public class ShipService {
 
